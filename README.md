@@ -19,6 +19,60 @@ uv sync
 uv sync --package
 ```
 
+## Building Standalone Executable
+
+### Local Build
+
+To create a standalone executable for your current platform:
+
+```bash
+# Install build dependencies
+uv sync --group dev
+
+# Build console version (with console window)
+python build_standalone.py --console
+
+# Create distribution package
+python create_distribution.py
+```
+
+The executable will be created in the `dist/` directory:
+- `dist/aswsim-cli` - Console version (for command line usage)
+
+### Cross-Platform Builds via GitHub Actions
+
+For cross-platform builds (Windows, macOS, Linux), the project uses GitHub Actions:
+
+1. **Push to main branch**: Triggers build for all platforms
+2. **Create a tag**: Creates a GitHub release with all platform executables
+3. **Manual trigger**: Use "workflow_dispatch" in GitHub Actions
+
+**Build Artifacts:**
+- Individual platform executables
+- Cross-platform distribution package with all executables
+- Complete documentation and guides
+
+**GitHub Release Contents:**
+- `aswsim_cross_platform_YYYYMMDD_HHMMSS.zip` - All platforms + docs
+- Individual executables for each platform
+
+### Distribution Package
+
+The `create_distribution.py` script creates a complete distribution package:
+- Standalone executable (no Python required)
+- README documentation
+- Quick start guide
+- Platform-specific instructions
+- Zipped for easy sharing
+
+**Package Contents:**
+- `aswsim` - Standalone executable
+- `README.md` - Full documentation
+- `QUICK_START.txt` - Quick usage guide
+- `PLATFORM_INSTRUCTIONS.txt` - Platform-specific setup
+
+**Note**: For cross-platform distribution, use GitHub Actions. Local builds are platform-specific.
+
 ## Quick Start
 
 ### Command Line Interface

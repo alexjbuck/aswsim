@@ -1,0 +1,20 @@
+Platform-Specific Instructions
+
+macOS:
+  - Make executable: chmod +x macos/aswsim
+  - Run: ./macos/aswsim
+  - If you get a security warning, go to System Preferences > Security & Privacy
+  - Click "Allow Anyway" for the aswsim executable
+
+Linux:
+  - Make executable: chmod +x linux/aswsim
+  - Run: ./linux/aswsim
+
+Windows:
+  - Double-click aswsim.exe or run from command prompt
+  - If you get a security warning, click "More info" then "Run anyway"
+
+TROUBLESHOOTING:
+  - If the executable doesn't run, try running from terminal/command prompt
+  - Check that you have sufficient disk space and memory
+  - The executable requires internet connection for plotly visualizations

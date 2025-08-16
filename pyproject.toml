@@ -19,4 +19,6 @@ package = true
 dev = [
     "mypy>=1.17.1",
     "ty>=0.0.1a18",
+    "pyinstaller>=6.0",
+    "pyinstaller-hooks-contrib>=2025.8",
 ]
