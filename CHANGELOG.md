@@ -6,6 +6,16 @@ All notable changes to this project will be documented in this file.
 
 ### Version Updates
 
+- **aswsim**: 0.3.0 → 0.3.1
+
+### Fixed
+
+- Fix github action trigger conditions
+
+## [2025-08-17] - 2025-08-17
+
+### Version Updates
+
 - **aswsim**: 0.2.0 → 0.3.0
 
 ### Added
