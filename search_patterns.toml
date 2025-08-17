@@ -1,0 +1,54 @@
+# Search Pattern Configuration
+# This file defines sensor deployment patterns for ASW simulation
+
+[search_pattern]
+name = "Three-Stage Search"
+description = "Progressive sensor deployment with increasing coverage"
+
+# Detection model parameters
+[detection_model]
+type = "gaussian"
+range_decay = 0.5  # Detection probability at range distance
+noise_floor = 0.01  # Minimum detection probability
+
+# Sensor configurations
+# Each sensor has a time (when it becomes active), range, detection rate, and position
+[[sensor]]
+name = "Center"
+time = 7.5 # minutes - active from start
+range = 2000.0  # yards - 50% detection likelihood range
+rate = 1.0  # detections per minute
+x = 0.0  # yards
+y = 0.0  # yards
+
+[[sensor]]
+name = "North"
+time = 5.0  # minutes
+range = 2000.0
+rate = 1.0
+x = 0.0
+y = 2000.0
+
+[[sensor]]
+name = "South"
+time = 10.0  # minutes
+range = 2000.0
+rate = 1.0
+x = 0.0
+y = -2000.0
+
+[[sensor]]
+name = "East"
+time = 12.5
+range = 2000.0
+rate = 1.0
+x = 2000.0
+y = 0.0
+
+[[sensor]]
+name = "West"
+time = 15.0
+range = 2000.0
+rate = 1.0
+x = -2000.0
+y = 0.0

@@ -1,3 +1,4 @@
 {
-    "mypy.dmypyExecutable": "${workspaceFolder}/bin/.dmypy"
+    "mypy.dmypyExecutable": "${workspaceFolder}/.venv/bin/dmypy",
+    "mypy.mypyExecutable": "${workspaceFolder}/.venv/bin/mypy"
 }

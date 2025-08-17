@@ -1,12 +1,13 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Tuple
+from typing import Tuple, Dict, Any, Optional
 
 import numpy as np
 
 from .behavior import BehaviorModel, constant_velocity
 from .distributions import Distribution, VelocityDistribution
+from .sensors import SearchPattern, DetectionEngine
 
 
 Bounds = Tuple[Tuple[float, float], Tuple[float, float]]  # ((min_x, max_x), (min_y, max_y))
@@ -103,6 +104,95 @@ def _simulate_constant_velocity_vectorized(
     return trajectories
 
 
+def track_detection_statistics(
+    trajectories: np.ndarray,
+    times: np.ndarray,
+    search_pattern: SearchPattern,
+    dt: float,
+) -> Dict[str, Any]:
+    """Track detection statistics over the entire simulation.
+    
+    Args:
+        trajectories: (T, N, 6) array of target trajectories
+        times: (T,) array of simulation times
+        search_pattern: Search pattern configuration
+        dt: Time step size
+        
+    Returns:
+        Dictionary with detection statistics over time
+    """
+    detection_engine = DetectionEngine(search_pattern)
+    n_steps = len(times)
+    
+    # Initialize statistics arrays
+    pattern_stats = {
+        'times': times,
+        'total_detections': np.zeros(n_steps),
+        'total_detection_rates': np.zeros(n_steps),
+        'average_coverage': np.zeros(n_steps),
+        'active_sensors': np.zeros(n_steps, dtype=int),
+        'cumulative_detections': np.zeros(n_steps),
+    }
+    
+    # Track individual sensor statistics
+    sensor_stats = {}
+    for sensor in search_pattern.sensors:
+        sensor_stats[sensor.name] = {
+            'detections': np.zeros(n_steps),
+            'detection_rates': np.zeros(n_steps),
+            'coverage': np.zeros(n_steps),
+            'active': np.zeros(n_steps, dtype=bool),
+            'cumulative_detections': np.zeros(n_steps),
+        }
+    
+    # Evaluate detection at each time step
+    for t_idx, current_time in enumerate(times):
+        # Get target positions at this time
+        target_positions = trajectories[t_idx, :, 0:2]  # x, y positions only
+        
+        # Evaluate pattern at this time
+        pattern_result = detection_engine.evaluate_pattern_at_time(
+            target_positions, current_time, dt
+        )
+        
+        # Store pattern-wide statistics
+        pattern_stats['total_detections'][t_idx] = pattern_result['total_detections']
+        pattern_stats['total_detection_rates'][t_idx] = pattern_result['total_detection_rate']
+        pattern_stats['average_coverage'][t_idx] = pattern_result['average_coverage']
+        pattern_stats['active_sensors'][t_idx] = pattern_result['active_sensors']
+        
+        # Calculate cumulative detections
+        if t_idx > 0:
+            pattern_stats['cumulative_detections'][t_idx] = (
+                pattern_stats['cumulative_detections'][t_idx - 1] + 
+                pattern_result['total_detections']
+            )
+        else:
+            pattern_stats['cumulative_detections'][t_idx] = pattern_result['total_detections']
+        
+        # Store individual sensor statistics
+        for sensor_name, sensor_result in pattern_result['sensor_results'].items():
+            sensor_stats[sensor_name]['detections'][t_idx] = sensor_result['detections']
+            sensor_stats[sensor_name]['detection_rates'][t_idx] = sensor_result['detection_rate']
+            sensor_stats[sensor_name]['coverage'][t_idx] = sensor_result['coverage']
+            sensor_stats[sensor_name]['active'][t_idx] = sensor_result['active']
+            
+            # Calculate cumulative detections for this sensor
+            if t_idx > 0:
+                sensor_stats[sensor_name]['cumulative_detections'][t_idx] = (
+                    sensor_stats[sensor_name]['cumulative_detections'][t_idx - 1] + 
+                    sensor_result['detections']
+                )
+            else:
+                sensor_stats[sensor_name]['cumulative_detections'][t_idx] = sensor_result['detections']
+    
+    return {
+        'pattern': pattern_stats,
+        'sensors': sensor_stats,
+        'search_pattern': search_pattern
+    }
+
+
 def _is_constant_velocity_behavior(behavior: BehaviorModel) -> bool:
     """Check if the behavior model is constant velocity."""
     # This is a simple heuristic - in practice, we could make this more robust
@@ -117,7 +207,8 @@ def simulate(
     init: InitialDistributions,
     behavior: BehaviorModel = constant_velocity,
     seed: int | None = None,
-) -> tuple[np.ndarray, np.ndarray]:
+    search_pattern: Optional[SearchPattern] = None,
+) -> tuple[np.ndarray, np.ndarray, Optional[Dict[str, Any]]]:
     """Run the simulation with optimized vectorized operations.
     
     Args:
@@ -127,10 +218,12 @@ def simulate(
         init: Initial distributions
         behavior: Behavior model for target motion
         seed: Random seed for reproducibility
+        search_pattern: Optional search pattern for detection tracking
     
     Returns:
         times: (T,) array of times
         trajectories: (T, N, 6) array: columns [x, y, z, vx, vy, vz]
+        detection_stats: Optional dictionary with detection statistics over time
     """
     rng = np.random.default_rng(seed)
     positions, velocities = sample_initial_state(rng, n_targets, init)
@@ -141,21 +234,25 @@ def simulate(
     # Fast path for constant velocity behavior
     if _is_constant_velocity_behavior(behavior):
         trajectories = _simulate_constant_velocity_vectorized(positions, velocities, times)
-        return times, trajectories
+    else:
+        # General vectorized simulation for other behaviors
+        trajectories = np.zeros((num_steps, n_targets, 6), dtype=float)
+        trajectories[0, :, 0:3] = positions
+        trajectories[0, :, 3:6] = velocities
+
+        # Vectorized time stepping
+        for t_idx in range(1, num_steps):
+            step_dt = times[t_idx] - times[t_idx - 1]
+            positions, velocities = behavior(positions, velocities, step_dt)
+            trajectories[t_idx, :, 0:3] = positions
+            trajectories[t_idx, :, 3:6] = velocities
     
-    # General vectorized simulation for other behaviors
-    trajectories = np.zeros((num_steps, n_targets, 6), dtype=float)
-    trajectories[0, :, 0:3] = positions
-    trajectories[0, :, 3:6] = velocities
-
-    # Vectorized time stepping
-    for t_idx in range(1, num_steps):
-        step_dt = times[t_idx] - times[t_idx - 1]
-        positions, velocities = behavior(positions, velocities, step_dt)
-        trajectories[t_idx, :, 0:3] = positions
-        trajectories[t_idx, :, 3:6] = velocities
-
-    return times, trajectories
+    # Track detection statistics if search pattern is provided
+    detection_stats = None
+    if search_pattern is not None:
+        detection_stats = track_detection_statistics(trajectories, times, search_pattern, dt)
+    
+    return times, trajectories, detection_stats
 
 
 # Convenience constructors for common initial distributions

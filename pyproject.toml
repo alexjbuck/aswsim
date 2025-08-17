@@ -4,6 +4,7 @@ dev = [
     "ty>=0.0.1a18",
     "pyinstaller>=6.0",
     "pyinstaller-hooks-contrib>=2025.8",
+    "plotly-stubs>=0.0.6",
 ]
 
 [project]

@@ -11,11 +11,10 @@ from plotly.subplots import make_subplots
 
 from aswsim import (
     simulate, bivariate_normal_position_uniform_depth, uniform_speed,
-    make_heatmap_animation
 )
 
 
-def benchmark_simulation(n_targets: int) -> tuple[float, np.ndarray, np.ndarray]:
+def benchmark_simulation(n_targets: int) -> tuple[float, np.ndarray, np.ndarray, dict | None]:
     """Benchmark a single simulation run."""
     
     # Create initial distribution
@@ -30,7 +29,7 @@ def benchmark_simulation(n_targets: int) -> tuple[float, np.ndarray, np.ndarray]
     
     # Time the simulation
     start_time = time.time()
-    times, trajectories = simulate(
+    times, trajectories, detection_stats = simulate(
         n_targets=n_targets,
         total_time=500.0,  # Longer time to better show benefits
         dt=1.0,
@@ -39,7 +38,7 @@ def benchmark_simulation(n_targets: int) -> tuple[float, np.ndarray, np.ndarray]
     )
     end_time = time.time()
     
-    return end_time - start_time, times, trajectories
+    return end_time - start_time, times, trajectories, detection_stats
 
 
 def run_benchmarks():
@@ -62,7 +61,7 @@ def run_benchmarks():
         print(f"Testing {n_targets} targets...")
         
         # Run simulation
-        simulation_time, _, _ = benchmark_simulation(n_targets)
+        simulation_time, _, _, _ = benchmark_simulation(n_targets)
         results['simulation_times'].append(simulation_time)
         
         print(f"  Simulation time: {simulation_time:.3f}s")
@@ -78,7 +77,7 @@ def plot_benchmark_results(results: dict):
     
     fig = make_subplots(
         rows=1, cols=1,
-        subplot_titles=('Simulation Time vs Target Count',),
+        subplot_titles=['Simulation Time vs Target Count'],
         vertical_spacing=0.1
     )
     

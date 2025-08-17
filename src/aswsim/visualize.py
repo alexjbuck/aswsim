@@ -8,10 +8,11 @@ from plotly.subplots import make_subplots
 
 from .behavior import constant_velocity
 from .simulation import simulate, bivariate_normal_position_uniform_depth
-from .distributions import uniform_speed, rayleigh_speed, beta_speed, bivariate_normal_velocity, independent_normal_velocity
+from .distributions import uniform_speed, rayleigh_speed, beta_speed, bivariate_normal_velocity, independent_normal_velocity, VelocityDistribution
+from .sensors import load_search_pattern
 
 
-def make_heatmap_animation(times: np.ndarray, trajectories: np.ndarray, grid_size: int = 100) -> go.Figure:
+def make_heatmap_animation(times: np.ndarray, trajectories: np.ndarray, grid_size: int = 100, search_pattern=None) -> go.Figure:
     # Heatmap over x-y; ignore depth. Compute histogram2d per time.
     x_all = trajectories[:, :, 0]
     y_all = trajectories[:, :, 1]
@@ -29,14 +30,12 @@ def make_heatmap_animation(times: np.ndarray, trajectories: np.ndarray, grid_siz
     fig = make_subplots(rows=1, cols=1)
     fig.add_trace(heatmap)
 
+
     for i in range(1, len(times)):
         z, _, _ = np.histogram2d(x_all[i], y_all[i], bins=[x_edges, y_edges], density=True)
-        frames.append(
-            go.Frame(
-                data=[go.Heatmap(z=z.T, x=x_edges, y=y_edges, colorscale="Viridis", zsmooth="best")],
-                name=str(i),
-            )
-        )
+        frame_data = [go.Heatmap(z=z.T, x=x_edges, y=y_edges, colorscale="Viridis", zsmooth="best")]
+        
+        frames.append(go.Frame(data=frame_data, name=str(i)))
 
     fig.frames = frames
     fig.update_layout(
@@ -81,7 +80,7 @@ def run_demo() -> None:
         velocity_dist=uniform_speed(2.0, 8.0, vz=0.0),
         pos_bounds=((-2000.0, 2000.0), (-2000.0, 2000.0)),
     )
-    times, traj = simulate(
+    times, traj, detection_stats = simulate(
         n_targets=2000,
         total_time=200.0,
         dt=1.0,
@@ -91,6 +90,15 @@ def run_demo() -> None:
     )
     fig = make_heatmap_animation(times, traj, grid_size=60)
     fig.show()
+    
+    # Display detection statistics if available
+    if detection_stats:
+        print("\nDetection Statistics:")
+        print("-" * 30)
+        pattern_stats = detection_stats['pattern']
+        print(f"Total cumulative detections: {pattern_stats['cumulative_detections'][-1]:.1f}")
+        print(f"Peak detection rate: {np.max(pattern_stats['total_detection_rates']):.1f} detections/minute")
+        print(f"Average coverage: {np.mean(pattern_stats['average_coverage']):.1%}")
 
 
 def main() -> None:
@@ -126,9 +134,12 @@ def main() -> None:
     parser.add_argument("--vy-mean", type=float, default=0.2, help="Mean vy for normal distributions")
     parser.add_argument("--vy-std", type=float, default=1.0, help="Std vy for normal distributions")
     parser.add_argument("--vz", type=float, default=0.0)
+    # Search pattern configuration
+    parser.add_argument("--search-pattern", type=str, help="Path to TOML search pattern file")
     args = parser.parse_args()
 
     # Create velocity distribution based on type
+    velocity_dist: VelocityDistribution
     if args.velocity_type == "uniform":
         velocity_dist = uniform_speed(args.min_speed, args.max_speed, args.vz)
     elif args.velocity_type == "rayleigh":
@@ -159,6 +170,22 @@ def main() -> None:
     if args.pos_min_x is not None and args.pos_max_x is not None and args.pos_min_y is not None and args.pos_max_y is not None:
         pos_bounds = ((args.pos_min_x, args.pos_max_x), (args.pos_min_y, args.pos_max_y))
     
+    # Load search pattern if specified
+    search_pattern = None
+    if args.search_pattern:
+        try:
+            from pathlib import Path
+            search_pattern = load_search_pattern(Path(args.search_pattern))
+            print(f"Loaded search pattern: {search_pattern.name}")
+            print(f"Description: {search_pattern.description}")
+            print(f"Number of sensors: {len(search_pattern.sensors)}")
+            for sensor in search_pattern.sensors:
+                print(f"  {sensor.name}: ({sensor.x:.0f}, {sensor.y:.0f}) at t={sensor.time:.1f}min")
+            print()
+        except Exception as e:
+            print(f"Warning: Could not load search pattern from {args.search_pattern}: {e}")
+            print("Continuing without search pattern...\n")
+    
     init = bivariate_normal_position_uniform_depth(
         pos_mean=np.array([args.pos_mean_x, args.pos_mean_y]),
         pos_cov=pos_cov,
@@ -167,15 +194,35 @@ def main() -> None:
         velocity_dist=velocity_dist,
         pos_bounds=pos_bounds,
     )
-    times, traj = simulate(
+    times, traj, detection_stats = simulate(
         n_targets=args.n_targets,
         total_time=args.total_time,
         dt=args.dt,
         init=init,
         behavior=constant_velocity,
         seed=args.seed,
+        search_pattern=search_pattern,
     )
-    fig = make_heatmap_animation(times, traj, grid_size=args.grid_size)
+    fig = make_heatmap_animation(times, traj, grid_size=args.grid_size, search_pattern=search_pattern)
     fig.show()
+    
+    # Display detection statistics if available
+    if detection_stats:
+        print("\nDetection Statistics:")
+        print("-" * 30)
+        pattern_stats = detection_stats['pattern']
+        print(f"Total cumulative detections: {pattern_stats['cumulative_detections'][-1]:.1f}")
+        print(f"Peak detection rate: {np.max(pattern_stats['total_detection_rates']):.1f} detections/minute")
+        print(f"Average coverage: {np.mean(pattern_stats['average_coverage']):.1%}")
+        
+        # Show individual sensor performance
+        sensor_stats = detection_stats['sensors']
+        print("\nIndividual Sensor Performance:")
+        print("-" * 30)
+        for sensor_name, stats in sensor_stats.items():
+            total_detections = stats['cumulative_detections'][-1]
+            peak_rate = np.max(stats['detection_rates'])
+            avg_coverage = np.mean(stats['coverage'])
+            print(f"{sensor_name}: {total_detections:.1f} detections, peak {peak_rate:.1f}/min, {avg_coverage:.1%} coverage")
 
 

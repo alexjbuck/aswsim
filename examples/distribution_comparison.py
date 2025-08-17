@@ -9,7 +9,7 @@ from plotly.subplots import make_subplots
 
 from aswsim import (
     simulate, bivariate_normal_position_uniform_depth,
-    uniform_speed, rayleigh_speed, beta_speed, bivariate_normal_velocity
+    uniform_speed, beta_speed, bivariate_normal_velocity
 )
 
 
@@ -24,7 +24,7 @@ def compare_velocity_distributions():
     total_time = 60.0 # minutes
     dt = 1.0 # minutes
     seed = 42
-    std_dev = 2000.0 # yards
+    std_dev = 500.0 # yards
     
     # Common position distribution
     pos_mean = np.array([0.0, 0.0])
@@ -33,12 +33,9 @@ def compare_velocity_distributions():
     pos_bounds = None
 
     # Common speed distribution
-    a = 3.0
-    b = 5.0
     speed_min = 2 * 2000/60 # yards/minute = 2 knots
     speed_max = 12 * 2000/60 # yards/minute = 10 knots
-    speed_max_beta = 12 * 2000/60 # yards/minute = 12 knots
-    # speed_mean = (speed_min + speed_max) / 2
+    # speed_mode = (speed_min + speed_max) / 2
     speed_mean = 5.5 * 2000/60
     speed_variance = speed_mean**2
     
@@ -52,7 +49,7 @@ def compare_velocity_distributions():
         # f"Rayleigh Speed (mode={speed_mode*60/2000:.2f} knots)": rayleigh_speed(speed_mode),
         f"Beta Speed (a=1.8, b=4, {2:.2f}-{20:.2f} knots)": beta_speed(1.8, 4.0, 2*2000/60, 20*2000/60),
         f"Beta Speed (a=3, b=5, {3:.2f}-{12:.2f} knots)": beta_speed(3, 5, 3*2000/60, 12*2000/60),
-        f"Beta Speed (a=5, b=2.5, {1:.2f}-{12:.2f} knots)": beta_speed(5, 2.5, 1*2000/60, 12*2000/60),
+        f"Beta Speed (a=5, b=2.5, {3:.2f}-{12:.2f} knots)": beta_speed(5, 2.5, 3*2000/60, 12*2000/60),
         f"Beta Speed (a=.6, b=.4, {2:.2f}-{12:.2f} knots)": beta_speed(0.6, 0.4, 2*2000/60, 12*2000/60),
     }
     
@@ -63,7 +60,7 @@ def compare_velocity_distributions():
         init = bivariate_normal_position_uniform_depth(
             pos_mean, pos_cov, depth_min, depth_max, vel_dist, pos_bounds
         )
-        times, trajectories = simulate(n_targets, total_time, dt, init, seed=seed)
+        times, trajectories, _ = simulate(n_targets, total_time, dt, init, seed=seed)
         
         # Calculate speed statistics
         speeds = np.sqrt(trajectories[:, :, 3]**2 + trajectories[:, :, 4]**2)
