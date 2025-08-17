@@ -17,10 +17,10 @@ def compare_velocity_distributions():
     """Compare different velocity distributions and their impact."""
 
     # Visualization parameters
-    grid_size = 250
+    grid_size = 150 
     
     # Common simulation parameters
-    n_targets = 100_000
+    n_targets = 50_000
     total_time = 60.0 # minutes
     dt = 1.0 # minutes
     seed = 42
@@ -33,21 +33,27 @@ def compare_velocity_distributions():
     pos_bounds = None
 
     # Common speed distribution
-    speed_min = 67.5  # yards/minute = 2 knots
-    speed_max = 337.5 # yards/minute = 10 knots
-    speed_mean = (speed_min + speed_max) / 2
-    speed_mode = speed_mean
+    a = 3.0
+    b = 5.0
+    speed_min = 2 * 2000/60 # yards/minute = 2 knots
+    speed_max = 12 * 2000/60 # yards/minute = 10 knots
+    speed_max_beta = 12 * 2000/60 # yards/minute = 12 knots
+    # speed_mean = (speed_min + speed_max) / 2
+    speed_mean = 5.5 * 2000/60
     speed_variance = speed_mean**2
     
     # Define different velocity distributions
     distributions = {
-        "Uniform Speed (2-10 knots)": uniform_speed(speed_min, speed_max), # in yards per minute
-        "Rayleigh Speed (mode=6 knots)": rayleigh_speed(speed_mode),
-        "Beta Speed (a=2, b=5, 2-10 knots)": beta_speed(2.0, 5.0, speed_min, speed_max+2),
-        "Bivariate Normal (vx=0±10 knots, vy=0±10 knots)": bivariate_normal_velocity(
+        f"Uniform Speed ({speed_min*60/2000:.2f}-{speed_max*60/2000:.2f} knots)": uniform_speed(speed_min, speed_max), # in yards per minute
+        f"Normal (vx=0±{speed_mean*60/2000:.2f} knots, vy=0±{speed_mean*60/2000:.2f} knots)": bivariate_normal_velocity(
             np.array([0.0, 0.0]),
             np.array([[speed_variance, 0.0], [0.0, speed_variance]])
         ),
+        # f"Rayleigh Speed (mode={speed_mode*60/2000:.2f} knots)": rayleigh_speed(speed_mode),
+        f"Beta Speed (a=1.8, b=4, {2:.2f}-{20:.2f} knots)": beta_speed(1.8, 4.0, 2*2000/60, 20*2000/60),
+        f"Beta Speed (a=3, b=5, {3:.2f}-{12:.2f} knots)": beta_speed(3, 5, 3*2000/60, 12*2000/60),
+        f"Beta Speed (a=5, b=2.5, {1:.2f}-{12:.2f} knots)": beta_speed(5, 2.5, 1*2000/60, 12*2000/60),
+        f"Beta Speed (a=.6, b=.4, {2:.2f}-{12:.2f} knots)": beta_speed(0.6, 0.4, 2*2000/60, 12*2000/60),
     }
     
     # Run simulations
@@ -81,18 +87,25 @@ def compare_velocity_distributions():
         print(f"  Range: {data['min_speed']*60/2000:.2f} - {data['max_speed']*60/2000:.2f} knots")
         print()
     
-    # Create comparison plots with global time slider
+    # Create comparison plots with shared axes
+    n_distributions = len(distributions)
+    
+    # Create subplots with shared axes for position plots (left column)
+    # and shared axes for velocity plots (right column)
     fig = make_subplots(
-        rows=2, cols=2,
-        subplot_titles=list(distributions.keys()),
-        specs=[[{"type": "heatmap"}, {"type": "heatmap"}],
-               [{"type": "heatmap"}, {"type": "heatmap"}]]
+        rows=n_distributions, cols=2,
+        subplot_titles=[f"{name}" for name in np.repeat(list(distributions.keys()), 2)],
+        specs=[[{"type": "heatmap"}, {"type": "histogram"}]] * n_distributions,
+        vertical_spacing=0.04,
+        horizontal_spacing=0.1,
+        shared_xaxes=True,  # Share x-axes within each column
+        # shared_yaxes=True   # Share y-axes within each column
     )
     
     # Get global bounds for consistent axes across all time steps
     all_x = np.concatenate([data['trajectories'][:, :, 0].flatten() for data in results.values()])
     all_y = np.concatenate([data['trajectories'][:, :, 1].flatten() for data in results.values()])
-    crop_factor = 0.7
+    crop_factor = 0.5
     x_min, x_max = float(np.min(all_x)) * crop_factor, float(np.max(all_x)) * crop_factor
     y_min, y_max = float(np.min(all_y)) * crop_factor, float(np.max(all_y)) * crop_factor
     pad_x = 0.05 * (x_max - x_min + 1e-9)
@@ -100,12 +113,12 @@ def compare_velocity_distributions():
     x_edges = np.linspace(x_min - pad_x, x_max + pad_x, grid_size)
     y_edges = np.linspace(y_min - pad_y, y_max + pad_y, grid_size)
     
-    # Create initial heatmaps (t=0)
+    # Create initial heatmaps (t=0) and velocity histograms
     frames = []
     for i, (name, data) in enumerate(results.items()):
-        row = i // 2 + 1
-        col = i % 2 + 1
+        row = i + 1  # Each distribution gets its own row
         
+        # Position heatmap (left column)
         x_all = data['trajectories'][0, :, 0]
         y_all = data['trajectories'][0, :, 1]
         z, _, _ = np.histogram2d(x_all, y_all, bins=[x_edges, y_edges], density=True)
@@ -113,15 +126,28 @@ def compare_velocity_distributions():
         heatmap = go.Heatmap(
             z=z.T, x=x_edges, y=y_edges,
             colorscale="Viridis", zsmooth="best",
-            showscale=(i == 0)  # Only show colorbar for first plot
+            showscale=False
         )
+        fig.add_trace(heatmap, row=row, col=1)
         
-        fig.add_trace(heatmap, row=row, col=col)
+        # Velocity histogram (right column)
+        speeds_knots = data['speeds'][0, :] * 60 / 2000  # Convert to knots
+        histogram = go.Histogram(
+            x=speeds_knots,
+            xbins=dict(size=0.5, start=0, end=20),
+            autobinx=False,
+            name=f"{name}",
+            opacity=0.7,
+            showlegend=False
+        )
+        fig.add_trace(histogram, row=row, col=2)
     
     # Create frames for all time steps
+    frames = []
     for t_idx in range(len(times)):
         frame_data = []
         for i, (name, data) in enumerate(results.items()):
+            # Position heatmap (left column)
             x_all = data['trajectories'][t_idx, :, 0]
             y_all = data['trajectories'][t_idx, :, 1]
             z, _, _ = np.histogram2d(x_all, y_all, bins=[x_edges, y_edges], density=True)
@@ -129,17 +155,29 @@ def compare_velocity_distributions():
             heatmap = go.Heatmap(
                 z=z.T, x=x_edges, y=y_edges,
                 colorscale="Viridis", zsmooth="best",
-                showscale=(i == 0)
+                showscale=False
             )
             frame_data.append(heatmap)
+            
+            # Velocity histogram (right column)
+            speeds_knots = data['speeds'][t_idx, :] * 60 / 2000  # Convert to knots
+            histogram = go.Histogram(
+                x=speeds_knots,
+                xbins=dict(size=0.5, start=0, end=20),
+                autobinx=False,
+                name=f"{name}",
+                opacity=0.7,
+                showlegend=False,
+            )
+            frame_data.append(histogram)
         
         frames.append(go.Frame(data=frame_data, name=str(t_idx)))
     
     fig.frames = frames
     
+    # Update main layout
     fig.update_layout(
-        title="Target Distribution Comparison",
-        height=800,
+        height=400 * n_distributions,
         width=1000,
         updatemenus=[
             {
@@ -148,28 +186,46 @@ def compare_velocity_distributions():
                     {"label": "Play", "method": "animate", "args": [None, {"fromcurrent": True, "frame": {"duration": 100, "redraw": True}, "transition": {"duration": 0}}]},
                     {"label": "Pause", "method": "animate", "args": [[None], {"mode": "immediate", "frame": {"duration": 0, "redraw": False}, "transition": {"duration": 0}}]},
                 ],
+                "x": 0.0,
+                "y": 1.08,
+                "xanchor": "left",
+                "yanchor": "top",
             }
         ],
         sliders=[
             {
                 "active": 0,
+                "currentvalue": {"prefix": "Time: ", "suffix": " min"},
                 "steps": [
                     {
-                        "label": f"t={times[i]:.1f}s",
+                        "label": f"t={times[i]:.1f}",
                         "method": "animate",
                         "args": [[str(i)], {"mode": "immediate", "frame": {"duration": 0, "redraw": True}, "transition": {"duration": 0}}],
                     }
                     for i in range(len(times))
                 ],
+                "x": 0.10,
+                "y": 1.1,
+                "len": 0.9,
             }
         ],
     )
     
-    # Update axes labels
-    for i in range(1, 3):
-        for j in range(1, 3):
-            fig.update_xaxes(title_text="x", row=i, col=j)
-            fig.update_yaxes(title_text="y", row=i, col=j)
+    # Update axes labels and set equal aspect ratio for position plots
+    for i in range(1, n_distributions + 1):
+        # Position heatmap axes (left column) - equal aspect ratio
+        fig.update_xaxes(title_text="x (yards)", row=i, col=1)
+        fig.update_yaxes(
+            title_text="y (yards)", 
+            row=i, 
+            col=1,
+            scaleanchor="x",
+            scaleratio=1
+        )
+        
+        # Velocity histogram axes (right column)
+        fig.update_xaxes(title_text="Speed (knots)", row=i, col=2)
+        fig.update_yaxes(title_text="Count", row=i, col=2)
     
     fig.show()
     
