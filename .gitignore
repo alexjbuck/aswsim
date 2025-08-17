@@ -5,6 +5,14 @@ build/
 dist/
 wheels/
 *.egg-info
+.mypy_cache
+.ruff_cache
 
 # Virtual environments
 .venv
+
+# Build Artifacts
+build/
+dist/
+distribution
+
