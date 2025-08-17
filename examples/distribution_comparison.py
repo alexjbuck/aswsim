@@ -41,16 +41,16 @@ def compare_velocity_distributions():
     
     # Define different velocity distributions
     distributions = {
-        f"Uniform Speed ({speed_min*60/2000:.2f}-{speed_max*60/2000:.2f} knots)": uniform_speed(speed_min, speed_max), # in yards per minute
+        f"Uniform ({speed_min*60/2000:.2f}-{speed_max*60/2000:.2f} knots)": uniform_speed(speed_min, speed_max), # in yards per minute
         f"Normal (vx=0±{speed_mean*60/2000:.2f} knots, vy=0±{speed_mean*60/2000:.2f} knots)": bivariate_normal_velocity(
             np.array([0.0, 0.0]),
             np.array([[speed_variance, 0.0], [0.0, speed_variance]])
         ),
         # f"Rayleigh Speed (mode={speed_mode*60/2000:.2f} knots)": rayleigh_speed(speed_mode),
-        f"Beta Speed (a=1.8, b=4, {2:.2f}-{20:.2f} knots)": beta_speed(1.8, 4.0, 2*2000/60, 20*2000/60),
-        f"Beta Speed (a=3, b=5, {3:.2f}-{12:.2f} knots)": beta_speed(3, 5, 3*2000/60, 12*2000/60),
-        f"Beta Speed (a=5, b=2.5, {3:.2f}-{12:.2f} knots)": beta_speed(5, 2.5, 3*2000/60, 12*2000/60),
-        f"Beta Speed (a=.6, b=.4, {2:.2f}-{12:.2f} knots)": beta_speed(0.6, 0.4, 2*2000/60, 12*2000/60),
+        f"Beta (a=1.8, b=4, {2:.2f}-{20:.2f} knots)": beta_speed(1.8, 4.0, 2*2000/60, 20*2000/60),
+        f"Beta (a=3, b=5, {3:.2f}-{12:.2f} knots)": beta_speed(3, 5, 3*2000/60, 12*2000/60),
+        f"Beta (a=5, b=2.5, {3:.2f}-{12:.2f} knots)": beta_speed(5, 2.5, 3*2000/60, 12*2000/60),
+        f"Beta (a=.6, b=.4, {2:.2f}-{12:.2f} knots)": beta_speed(0.6, 0.4, 2*2000/60, 12*2000/60),
     }
     
     # Run simulations
@@ -90,11 +90,12 @@ def compare_velocity_distributions():
     # Create subplots with shared axes for position plots (left column)
     # and shared axes for velocity plots (right column)
     fig = make_subplots(
-        rows=n_distributions, cols=2,
+        rows=n_distributions//2, cols=4,
         subplot_titles=[f"{name}" for name in np.repeat(list(distributions.keys()), 2)],
-        specs=[[{"type": "heatmap"}, {"type": "histogram"}]] * n_distributions,
+        specs=[[{"type": "heatmap"}, {"type": "histogram"}, {"type": "heatmap"}, {"type": "histogram"}]] * (n_distributions//2),
+        column_widths=[2, 1, 2, 1],
         vertical_spacing=0.04,
-        horizontal_spacing=0.1,
+        horizontal_spacing=0.05,
         shared_xaxes=True,  # Share x-axes within each column
         # shared_yaxes=True   # Share y-axes within each column
     )
@@ -113,7 +114,9 @@ def compare_velocity_distributions():
     # Create initial heatmaps (t=0) and velocity histograms
     frames = []
     for i, (name, data) in enumerate(results.items()):
-        row = i + 1  # Each distribution gets its own row
+        row = i//2 + 1  # 2 distributions per row
+        col = (i%2)*2 + 1 # base column for position and velocity with 2 distributions per row
+        print(f"Adding trace for {name} to row {row} and col {col}")
         
         # Position heatmap (left column)
         x_all = data['trajectories'][0, :, 0]
@@ -125,7 +128,7 @@ def compare_velocity_distributions():
             colorscale="Viridis", zsmooth="best",
             showscale=False
         )
-        fig.add_trace(heatmap, row=row, col=1)
+        fig.add_trace(heatmap, row=row, col=col)
         
         # Velocity histogram (right column)
         speeds_knots = data['speeds'][0, :] * 60 / 2000  # Convert to knots
@@ -137,8 +140,20 @@ def compare_velocity_distributions():
             opacity=0.7,
             showlegend=False
         )
-        fig.add_trace(histogram, row=row, col=2)
+        fig.add_trace(histogram, row=row, col=col+1)
     
+    # Update axes labels and set equal aspect ratio for position plots
+    for i in range(1, n_distributions + 1):
+        row = i//2 + 1  # 2 distributions per row
+        col = (i%2)*2 + 1 # base column for position and velocity with 2 distributions per row
+        # Position heatmap axes (left column) - equal aspect ratio
+        # fig.update_xaxes(title_text="x (yards)", row=row, col=col)
+        fig.update_yaxes(
+            row=row, 
+            col=col,
+            scaleanchor="x",
+            scaleratio=1,
+        )
     # Create frames for all time steps
     frames = []
     for t_idx in range(len(times)):
@@ -174,8 +189,8 @@ def compare_velocity_distributions():
     
     # Update main layout
     fig.update_layout(
-        height=400 * n_distributions,
-        width=1000,
+        height=200 * n_distributions,
+        width=1400,
         updatemenus=[
             {
                 "type": "buttons",
@@ -210,20 +225,19 @@ def compare_velocity_distributions():
     
     # Update axes labels and set equal aspect ratio for position plots
     for i in range(1, n_distributions + 1):
+        row = i//2 + 1  # 2 distributions per row
+        col = (i%2)*2 + 1 # base column for position and velocity with 2 distributions per row
         # Position heatmap axes (left column) - equal aspect ratio
-        fig.update_xaxes(title_text="x (yards)", row=i, col=1)
+        # fig.update_xaxes(title_text="x (yards)", row=row, col=col)
         fig.update_yaxes(
-            title_text="y (yards)", 
-            row=i, 
-            col=1,
+            row=row, 
+            col=col,
             scaleanchor="x",
-            scaleratio=1
+            scaleratio=1,
         )
-        
-        # Velocity histogram axes (right column)
-        fig.update_xaxes(title_text="Speed (knots)", row=i, col=2)
-        fig.update_yaxes(title_text="Count", row=i, col=2)
-    
+    fig.update_xaxes(
+        row=1,col=1,scaleanchor="y",scaleratio=1,
+    )
     fig.show()
     
     return results
