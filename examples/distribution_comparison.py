@@ -9,20 +9,22 @@ from plotly.subplots import make_subplots
 
 from aswsim import (
     simulate, bivariate_normal_position_uniform_depth,
-    uniform_speed, rayleigh_speed, beta_speed, bivariate_normal_velocity,
-    make_heatmap_animation
+    uniform_speed, rayleigh_speed, beta_speed, bivariate_normal_velocity
 )
 
 
 def compare_velocity_distributions():
     """Compare different velocity distributions and their impact."""
+
+    # Visualization parameters
+    grid_size = 250
     
     # Common simulation parameters
-    n_targets = 100000
-    total_time = 60.0
-    dt = 1.0
+    n_targets = 100_000
+    total_time = 60.0 # minutes
+    dt = 1.0 # minutes
     seed = 42
-    std_dev = 2000.0
+    std_dev = 2000.0 # yards
     
     # Common position distribution
     pos_mean = np.array([0.0, 0.0])
@@ -31,8 +33,8 @@ def compare_velocity_distributions():
     pos_bounds = None
 
     # Common speed distribution
-    speed_min = 67.5
-    speed_max = 337.5
+    speed_min = 67.5  # yards/minute = 2 knots
+    speed_max = 337.5 # yards/minute = 10 knots
     speed_mean = (speed_min + speed_max) / 2
     speed_mode = speed_mean
     speed_variance = speed_mean**2
@@ -90,12 +92,13 @@ def compare_velocity_distributions():
     # Get global bounds for consistent axes across all time steps
     all_x = np.concatenate([data['trajectories'][:, :, 0].flatten() for data in results.values()])
     all_y = np.concatenate([data['trajectories'][:, :, 1].flatten() for data in results.values()])
-    x_min, x_max = float(np.min(all_x)), float(np.max(all_x))
-    y_min, y_max = float(np.min(all_y)), float(np.max(all_y))
+    crop_factor = 0.7
+    x_min, x_max = float(np.min(all_x)) * crop_factor, float(np.max(all_x)) * crop_factor
+    y_min, y_max = float(np.min(all_y)) * crop_factor, float(np.max(all_y)) * crop_factor
     pad_x = 0.05 * (x_max - x_min + 1e-9)
     pad_y = 0.05 * (y_max - y_min + 1e-9)
-    x_edges = np.linspace(x_min - pad_x, x_max + pad_x, 50)
-    y_edges = np.linspace(y_min - pad_y, y_max + pad_y, 50)
+    x_edges = np.linspace(x_min - pad_x, x_max + pad_x, grid_size)
+    y_edges = np.linspace(y_min - pad_y, y_max + pad_y, grid_size)
     
     # Create initial heatmaps (t=0)
     frames = []

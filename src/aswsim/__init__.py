@@ -1,4 +1,10 @@
-from .behavior import BehaviorModel, constant_velocity as constant_velocity_behavior
+from .behavior import (
+    BehaviorModel, 
+    constant_velocity as constant_velocity_behavior,
+    constant_acceleration,
+    turn_rate_behavior,
+    random_walk_behavior
+)
 from .simulation import InitialDistributions, simulate, bivariate_normal_position_uniform_depth
 from .distributions import (
     Distribution, VelocityDistribution, CartesianVelocity, PolarVelocity,
@@ -10,6 +16,9 @@ from .visualize import main as main, make_heatmap_animation, run_demo
 __all__ = [
     "BehaviorModel",
     "constant_velocity_behavior",
+    "constant_acceleration",
+    "turn_rate_behavior",
+    "random_walk_behavior",
     "InitialDistributions",
     "simulate",
     "bivariate_normal_position_uniform_depth",

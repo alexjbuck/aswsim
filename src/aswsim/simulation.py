@@ -75,6 +75,41 @@ def sample_initial_state(rng: np.random.Generator, n: int, init: InitialDistribu
     return positions, velocities
 
 
+
+
+
+def _simulate_constant_velocity_vectorized(
+    initial_positions: np.ndarray,
+    initial_velocities: np.ndarray,
+    times: np.ndarray,
+) -> np.ndarray:
+    """Ultra-fast simulation for constant velocity using vectorized operations."""
+    n_targets = initial_positions.shape[0]
+    n_steps = len(times)
+    
+    # Pre-allocate trajectories array
+    trajectories = np.zeros((n_steps, n_targets, 6), dtype=float)
+    
+    # Vectorized computation: positions = initial_positions + velocities * time
+    # This computes all time steps at once using broadcasting
+    time_deltas = times[:, np.newaxis, np.newaxis]  # Shape: (n_steps, 1, 1)
+    
+    # Compute all positions at once
+    trajectories[:, :, 0:3] = initial_positions[np.newaxis, :, :] + initial_velocities[np.newaxis, :, :] * time_deltas
+    
+    # Velocities remain constant
+    trajectories[:, :, 3:6] = initial_velocities[np.newaxis, :, :]
+    
+    return trajectories
+
+
+def _is_constant_velocity_behavior(behavior: BehaviorModel) -> bool:
+    """Check if the behavior model is constant velocity."""
+    # This is a simple heuristic - in practice, we could make this more robust
+    # by checking the function name or adding a flag to BehaviorModel
+    return behavior.__name__ == 'constant_velocity' if hasattr(behavior, '__name__') else False
+
+
 def simulate(
     n_targets: int,
     total_time: float,
@@ -83,8 +118,16 @@ def simulate(
     behavior: BehaviorModel = constant_velocity,
     seed: int | None = None,
 ) -> tuple[np.ndarray, np.ndarray]:
-    """Run the simulation.
-
+    """Run the simulation with optimized vectorized operations.
+    
+    Args:
+        n_targets: Number of targets to simulate
+        total_time: Total simulation time
+        dt: Time step size
+        init: Initial distributions
+        behavior: Behavior model for target motion
+        seed: Random seed for reproducibility
+    
     Returns:
         times: (T,) array of times
         trajectories: (T, N, 6) array: columns [x, y, z, vx, vy, vz]
@@ -94,12 +137,21 @@ def simulate(
 
     num_steps = int(np.floor(total_time / dt)) + 1
     times = np.linspace(0.0, dt * (num_steps - 1), num_steps)
+    
+    # Fast path for constant velocity behavior
+    if _is_constant_velocity_behavior(behavior):
+        trajectories = _simulate_constant_velocity_vectorized(positions, velocities, times)
+        return times, trajectories
+    
+    # General vectorized simulation for other behaviors
     trajectories = np.zeros((num_steps, n_targets, 6), dtype=float)
     trajectories[0, :, 0:3] = positions
     trajectories[0, :, 3:6] = velocities
 
+    # Vectorized time stepping
     for t_idx in range(1, num_steps):
-        positions, velocities = behavior(positions, velocities, dt)
+        step_dt = times[t_idx] - times[t_idx - 1]
+        positions, velocities = behavior(positions, velocities, step_dt)
         trajectories[t_idx, :, 0:3] = positions
         trajectories[t_idx, :, 3:6] = velocities
 
