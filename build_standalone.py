@@ -42,7 +42,7 @@ def build_executable():
     result = subprocess.run(cmd, cwd=project_root, capture_output=True, text=True)
     
     if result.returncode == 0:
-        print("✅ Build successful!")
+        print("Build successful!")
         print(f"Executable created at: {project_root}/dist/aswsim-cli")
         
         # Show file size
@@ -51,7 +51,7 @@ def build_executable():
             size_mb = exe_path.stat().st_size / (1024 * 1024)
             print(f"File size: {size_mb:.1f} MB")
     else:
-        print("❌ Build failed!")
+        print("Build failed!")
         print("STDOUT:", result.stdout)
         print("STDERR:", result.stderr)
         sys.exit(1)

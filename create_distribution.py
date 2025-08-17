@@ -26,16 +26,16 @@ def create_distribution():
     exe_path = dist_dir / "aswsim-cli"
     if exe_path.exists():
         shutil.copy2(exe_path, package_dir / "aswsim")
-        print(f"✅ Copied executable: {exe_path.name}")
+        print(f"Copied executable: {exe_path.name}")
     else:
-        print(f"❌ Executable not found: {exe_path}")
+        print(f"ERROR: Executable not found: {exe_path}")
         return
     
     # Copy documentation
     readme_path = project_root / "README.md"
     if readme_path.exists():
         shutil.copy2(readme_path, package_dir / "README.md")
-        print(f"✅ Copied README: {readme_path.name}")
+        print(f"Copied README: {readme_path.name}")
     
     # Create quick start guide
     quick_start = package_dir / "QUICK_START.txt"
@@ -73,7 +73,7 @@ VELOCITY TYPES:
 
 For detailed documentation, see README.md
 """)
-    print(f"✅ Created quick start guide: {quick_start.name}")
+    print(f"Created quick start guide: {quick_start.name}")
     
     # Create platform-specific instructions
     platform_guide = package_dir / "PLATFORM_INSTRUCTIONS.txt"
@@ -98,7 +98,7 @@ TROUBLESHOOTING:
   - Check that you have sufficient disk space and memory
   - The executable requires internet connection for plotly visualizations
 """)
-    print(f"✅ Created platform guide: {platform_guide.name}")
+    print(f"Created platform guide: {platform_guide.name}")
     
     # Create zip file
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -111,16 +111,16 @@ TROUBLESHOOTING:
                 arcname = file_path.relative_to(package_dir)
                 zipf.write(file_path, arcname)
     
-    print(f"✅ Created distribution package: {zip_path}")
-    print(f"📦 Package size: {zip_path.stat().st_size / (1024*1024):.1f} MB")
+    print(f"Created distribution package: {zip_path}")
+    print(f"Package size: {zip_path.stat().st_size / (1024*1024):.1f} MB")
     
     # Show contents
-    print("\n📁 Distribution package contents:")
+    print("\nDistribution package contents:")
     for file_path in package_dir.rglob('*'):
         if file_path.is_file():
             print(f"  - {file_path.name}")
     
-    print(f"\n🎉 Distribution ready! Share: {zip_path.name}")
+    print(f"\nDistribution ready! Share: {zip_path.name}")
 
 
 if __name__ == "__main__":
