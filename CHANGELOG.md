@@ -6,6 +6,16 @@ All notable changes to this project will be documented in this file.
 
 ### Version Updates
 
+- **aswsim**: 0.3.1 → 0.3.2
+
+### Fixed
+
+- Refactor comparison graph into 4 columns to allow a denser display of options
+
+## [2025-08-17] - 2025-08-17
+
+### Version Updates
+
 - **aswsim**: 0.3.0 → 0.3.1
 
 ### Fixed
