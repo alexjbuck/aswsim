@@ -35,9 +35,10 @@ jobs:
       run: |
         uv sync --group dev
     
-    - name: Build executable
+    - name: Build executables
       run: |
         uv run python build_standalone.py --console
+        uv run python build_examples.py --all
     
     - name: Get platform name
       id: platform
@@ -51,17 +52,17 @@ jobs:
           echo "platform=linux" >> "$GITHUB_OUTPUT"
         fi
     
-    - name: Upload executable
+    - name: Upload executables
       uses: actions/upload-artifact@v4
       with:
         name: aswsim-${{ steps.platform.outputs.platform }}
-        path: dist/aswsim*
+        path: dist/*
         retention-days: 30
 
   create-distributions:
     needs: build
     runs-on: ubuntu-latest
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v'))
     
     steps:
     - name: Checkout code
@@ -81,7 +82,7 @@ jobs:
             # Create platform-specific directory
             mkdir -p "aswsim-$platform"
             
-            # Copy executable
+            # Copy all executables
             cp "artifacts/aswsim-$platform"/* "aswsim-$platform/"
             
             # Copy documentation
@@ -143,23 +144,30 @@ jobs:
           Standalone executables for Windows, macOS, and Linux.
           
           ### Downloads
-          - **aswsim-windows.zip**: Windows executable + documentation
-          - **aswsim-macos.tar.gz**: macOS executable + documentation  
-          - **aswsim-linux.tar.gz**: Linux executable + documentation
+          - **aswsim-windows.zip**: Windows executables + documentation
+          - **aswsim-macos.tar.gz**: macOS executables + documentation  
+          - **aswsim-linux.tar.gz**: Linux executables + documentation
           - **Individual executables**: Platform-specific builds only
+          
+          ### Included Executables
+          - **aswsim-cli**: Main command-line interface with search pattern support
+          - **distribution-comparison**: Interactive velocity distribution comparison
+          - **detection-demo**: Sensor detection system demonstration
           
           ### Features
           - No Python installation required
           - Interactive visualization with Plotly
           - Multiple velocity distribution types
           - Flexible position and velocity parameters
+          - Sensor detection system with TOML configuration
+          - Time-evolving search patterns
           
           ### Quick Start
           1. Download your platform's archive file:
              - Windows: `aswsim-windows.zip`
              - macOS/Linux: `aswsim-macos.tar.gz` or `aswsim-linux.tar.gz`
-          2. Extract and make executable (if needed): `chmod +x aswsim`
-          3. Run: `./aswsim --help`
+          2. Extract and make executable (if needed): `chmod +x aswsim-cli`
+          3. Run: `./aswsim-cli --help` or `./distribution-comparison`
           
           See README.md for detailed documentation.
       env:
