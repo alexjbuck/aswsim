@@ -1,14 +1,13 @@
 from __future__ import annotations
 
 import argparse
-from typing import Tuple
 
 import numpy as np
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 
 from .behavior import constant_velocity
-from .simulation import InitialDistributions, simulate, bivariate_normal_position_uniform_depth
+from .simulation import simulate, bivariate_normal_position_uniform_depth
 from .distributions import uniform_speed, rayleigh_speed, beta_speed, bivariate_normal_velocity, independent_normal_velocity
 
 

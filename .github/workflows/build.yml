@@ -41,6 +41,7 @@ jobs:
     
     - name: Get platform name
       id: platform
+      shell: bash
       run: |
         if [ "$RUNNER_OS" = "Windows" ]; then
           echo "platform=windows" >> "$GITHUB_OUTPUT"
@@ -72,6 +73,7 @@ jobs:
         path: artifacts
     
     - name: Create platform-specific distributions
+      shell: bash
       run: |
         # Create distributions for each platform
         for platform in windows macos linux; do
